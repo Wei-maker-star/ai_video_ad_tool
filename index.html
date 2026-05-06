@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI视频广告生成工具</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf3 100%);
+    color: #1f2329;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* Header */
+  .header {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #1f2329;
+    margin-bottom: 4px;
+  }
+  .header p { font-size: 13px; color: #8f959e; }
+
+  /* Steps Indicator */
+  .steps {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    color: #8f959e;
+    transition: all 0.3s;
+  }
+  .step.active { color: #3370ff; }
+  .step.done { color: #00b365; }
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: #e5e6eb;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600;
+    margin-right: 10px;
+  }
+  .step.active .step-num { background: #3370ff; }
+  .step.done .step-num { background: #00b365; }
+  .step-label { font-size: 14px; font-weight: 500; }
+  .step-line {
+    flex: 1;
+    height: 2px;
+    background: #e5e6eb;
+    margin: 0 16px;
+  }
+  .step.done + .step-line { background: #00b365; }
+
+  /* Card */
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 28px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+  }
+  .card-title::before {
+    content: "";
+    width: 3px; height: 14px;
+    background: #3370ff;
+    border-radius: 2px;
+    margin-right: 8px;
+  }
+
+  /* Form Elements */
+  .form-row { margin-bottom: 22px; }
+  .form-label {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    display: block;
+    width: 100%;
+    color: #1f2329;
+  }
+  .required::after { content: " *"; color: #f53f3f; }
+
+  /* Placement chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    padding: 8px 16px;
+    border: 1px solid #e5e6eb;
+    border-radius: 20px;
+    background: #f7f8fa;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .chip:hover { border-color: #3370ff; color: #3370ff; }
+  .chip.selected {
+    background: #e8f0ff;
+    border-color: #3370ff;
+    color: #3370ff;
+    font-weight: 500;
+  }
+
+  /* Textarea */
+  textarea, input[type="text"] {
+    width: 100%;
+    border: 1px solid #e5e6eb;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s;
+  }
+  textarea:focus, input:focus {
+    outline: none;
+    border-color: #3370ff;
+  }
+  textarea { min-height: 100px; }
+
+  /* Upload */
+  .upload-zone {
+    display: block;
+    width: 100%;
+    border: 2px dashed #c9cdd4;
+    border-radius: 10px;
+    padding: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fafbfc;
+  }
+  .upload-zone:hover {
+    border-color: #3370ff;
+    background: #f0f5ff;
+  }
+  .upload-zone.dragover {
+    border-color: #3370ff;
+    background: #e8f0ff;
+  }
+  .upload-icon {
+    font-size: 32px;
+    color: #8f959e;
+    margin-bottom: 8px;
+  }
+  .upload-text { font-size: 14px; color: #4e5969; margin-bottom: 4px; }
+  .upload-hint { font-size: 12px; color: #8f959e; }
+
+  .file-list {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .file-item {
+    position: relative;
+    border: 1px solid #e5e6eb;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    background: #f7f8fa;
+  }
+  .file-item img, .file-item video {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .file-item .remove {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 22px; height: 22px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+  }
+  .file-item .name {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 11px;
+    padding: 4px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+  }
+  .btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary { background: #3370ff; color: #fff; }
+  .btn-primary:hover { background: #2961e8; }
+  .btn-primary:disabled { background: #c9cdd4; cursor: not-allowed; }
+  .btn-default { background: #f2f3f5; color: #1f2329; }
+  .btn-default:hover { background: #e5e6eb; }
+  .btn-danger { background: #fff; color: #f53f3f; border: 1px solid #f53f3f; }
+  .btn-danger:hover { background: #fff1f0; }
+  .btn-success { background: #00b365; color: #fff; }
+  .btn-success:hover { background: #009a57; }
+
+  /* Drama Cards */
+  .drama-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .drama-toolbar .info { font-size: 13px; color: #8f959e; }
+  .drama-toolbar .actions { display: flex; gap: 10px; }
+
+  .drama-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .drama-card {
+    border: 2px solid #e5e6eb;
+    border-radius: 12px;
+    padding: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: #fff;
+  }
+  .drama-card:hover { border-color: #3370ff; box-shadow: 0 4px 12px rgba(51,112,255,0.1); }
+  .drama-card.selected {
+    border-color: #3370ff;
+    background: #f0f5ff;
+  }
+  .drama-card.selected::after {
+    content: "✓";
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 22px; height: 22px;
+    background: #3370ff;
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  .drama-card .delete-btn {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 24px; height: 24px;
+    border: none;
+    background: #fff1f0;
+    color: #f53f3f;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .drama-card:hover .delete-btn { opacity: 1; }
+  .drama-card.selected:hover .delete-btn { opacity: 0; }
+
+  .drama-name { font-size: 16px; font-weight: 600; margin-bottom: 8px; padding-right: 32px; }
+  .drama-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: #fff7e8;
+    color: #ff7d00;
+    border-radius: 4px;
+    font-size: 11px;
+    margin-right: 6px;
+    margin-bottom: 8px;
+  }
+  .drama-meta { font-size: 12px; color: #4e5969; margin-bottom: 8px; line-height: 1.6; }
+  .drama-meta strong { color: #1f2329; }
+  .drama-summary {
+    font-size: 13px;
+    color: #4e5969;
+    line-height: 1.6;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .drama-reason {
+    font-size: 12px;
+    color: #3370ff;
+    background: #f0f5ff;
+    padding: 8px 10px;
+    border-radius: 6px;
+    line-height: 1.5;
+  }
+
+  /* Result Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e6eb;
+    margin-bottom: 20px;
+  }
+  .tab {
+    padding: 12px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #4e5969;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+  }
+  .tab:hover { color: #3370ff; }
+  .tab.active {
+    color: #3370ff;
+    border-color: #3370ff;
+    font-weight: 500;
+  }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 18px;
+  }
+  .result-card {
+    border: 1px solid #e5e6eb;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+    transition: all 0.2s;
+  }
+  .result-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+  .result-preview {
+    aspect-ratio: 16/9;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .result-preview img, .result-preview video {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .result-preview .badge {
+    position: absolute;
+    top: 10px; left: 10px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+  .result-body { padding: 16px; }
+  .result-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .result-text {
+    font-size: 13px;
+    color: #4e5969;
+    line-height: 1.6;
+    margin-bottom: 10px;
+    max-height: 60px;
+    overflow-y: auto;
+  }
+  .drama-element {
+    background: #f7f8fa;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #4e5969;
+    margin-bottom: 10px;
+  }
+  .drama-element strong { color: #1f2329; }
+  .result-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .result-actions .btn { padding: 6px 12px; font-size: 12px; }
+
+  /* Loading */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .loading-box {
+    background: #fff;
+    border-radius: 12px;
+    padding: 32px 48px;
+    text-align: center;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid #e5e6eb;
+    border-top-color: #3370ff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Progress Page */
+  .progress-overlay {
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    flex-direction: column;
+  }
+  .progress-content {
+    text-align: center;
+    color: #fff;
+    max-width: 500px;
+    padding: 24px;
+  }
+  .progress-logo {
+    font-size: 48px;
+    margin-bottom: 24px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+  }
+  .progress-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .progress-subtitle {
+    font-size: 14px;
+    color: #8f959e;
+    margin-bottom: 32px;
+  }
+  .progress-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .progress-step {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    transition: all 0.3s;
+    border: 1px solid transparent;
+  }
+  .progress-step.active {
+    background: rgba(51,112,255,0.15);
+    border-color: #3370ff;
+    transform: translateX(8px);
+  }
+  .progress-step.done {
+    background: rgba(0,179,101,0.15);
+    border-color: #00b365;
+  }
+  .progress-step-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .progress-step.active .progress-step-icon {
+    background: #3370ff;
+    animation: spin 1s linear infinite;
+  }
+  .progress-step.done .progress-step-icon { background: #00b365; }
+  .progress-step-info { flex: 1; text-align: left; }
+  .progress-step-name {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+  .progress-step-desc {
+    font-size: 12px;
+    color: #8f959e;
+  }
+  .progress-step.active .progress-step-desc { color: #3370ff; }
+  .progress-step.done .progress-step-desc { color: #00b365; }
+  .progress-bar-container {
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3370ff, #00b365);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+  .progress-percent {
+    font-size: 13px;
+    color: #8f959e;
+  }
+  .progress-hint {
+    margin-top: 24px;
+    font-size: 12px;
+    color: #4e5969;
+  }
+
+  .hidden { display: none !important; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 30px; left: 50%;
+    transform: translateX(-50%);
+    background: #1f2329;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>智能广告投放工作流</h1>
+    <p>素材解析 → 剧集匹配 → 创意生成,一站式完成场景化广告投放</p>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step active" id="stepNav1">
+      <div class="step-num">1</div>
+      <div class="step-label">素材解析</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="stepNav2">
+      <div class="step-num">2</div>
+      <div class="step-label">剧集匹配</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step" id="stepNav3">
+      <div class="step-num">3</div>
+      <div class="step-label">生成结果</div>
+    </div>
+  </div>
+
+  <!-- ===== Page 1: 素材解析 ===== -->
+  <div id="page1">
+    <div class="card">
+      <div class="card-title">广告位选择</div>
+      <div class="form-row">
+        <label class="form-label required">投放广告位(可多选)</label>
+        <div class="chips" id="placementChips">
+          <div class="chip" data-value="前插广告">前插广告</div>
+          <div class="chip" data-value="中插广告">中插广告</div>
+          <div class="chip" data-value="后插广告">后插广告</div>
+          <div class="chip" data-value="暂停贴">暂停贴</div>
+          <div class="chip" data-value="视频内磁贴">视频内磁贴</div>
+          <div class="chip" data-value="激励广告">激励广告</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">广告文案</div>
+      <div class="form-row">
+        <label class="form-label">主标题</label>
+        <input type="text" id="adTitle" placeholder="例:夏日清凉冰镇可乐,畅爽一夏" maxlength="50" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">副标题 / 卖点</label>
+        <input type="text" id="adSubtitle" placeholder="例:0糖0卡,健康新选择" maxlength="80" />
+      </div>
+      <div class="form-row">
+        <label class="form-label">详细文案</label>
+        <textarea id="adContent" placeholder="请输入广告详细描述、卖点、活动信息等"></textarea>
+      </div>
+      <div class="form-row">
+        <label class="form-label">行动召唤(CTA)</label>
+        <input type="text" id="adCta" placeholder="例:立即抢购、限时优惠" maxlength="20" />
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">素材上传</div>
+      <div class="form-row">
+        <div class="form-label">广告图片</div>
+        <div class="upload-zone" onclick="document.getElementById('imageInput').click()">
+          <div class="upload-icon">🖼️</div>
+          <div class="upload-text">点击或拖拽上传图片</div>
+          <div class="upload-hint">支持 JPG / PNG / WEBP,单张 ≤ 10MB</div>
+        </div>
+        <input type="file" id="imageInput" accept="image/*" multiple style="display:none" />
+        <div class="file-list" id="imageList"></div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label">广告视频</div>
+        <div class="upload-zone" onclick="document.getElementById('videoInput').click()">
+          <div class="upload-icon">🎬</div>
+          <div class="upload-text">点击或拖拽上传视频</div>
+          <div class="upload-hint">支持 MP4 / MOV,单个 ≤ 100MB</div>
+        </div>
+        <input type="file" id="videoInput" accept="video/*" multiple style="display:none" />
+        <div class="file-list" id="videoList"></div>
+      </div>
+
+      <div class="btn-row">
+        <div></div>
+        <button class="btn btn-primary" onclick="goToStep2()">下一步:剧集匹配 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Page 2: 剧集匹配 ===== -->
+  <div id="page2" class="hidden">
+    <div class="card">
+      <div class="card-title">智能剧集匹配</div>
+      <div class="drama-toolbar">
+        <div class="info">已为你智能匹配 <strong id="dramaCount">0</strong> 部高契合度剧集,已选 <strong id="selectedCount">0</strong> 部</div>
+        <div class="actions">
+          <button class="btn btn-default" onclick="refreshDramas()">🔄 换一批</button>
+        </div>
+      </div>
+      <div class="drama-grid" id="dramaGrid"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-default" onclick="backToStep1()">← 上一步</button>
+        <button class="btn btn-primary" onclick="goToStep3()">确认生成 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Page 3: 生成结果 ===== -->
+  <div id="page3" class="hidden">
+    <div class="card">
+      <div class="card-title">创意生成结果</div>
+      <div class="tabs">
+        <div class="tab active" data-tab="text" onclick="switchTab('text')">📝 文案创意</div>
+        <div class="tab" data-tab="image" onclick="switchTab('image')">🖼️ 图片创意</div>
+        <div class="tab" data-tab="video" onclick="switchTab('video')">🎬 视频创意</div>
+        <div class="tab" data-tab="interactive" onclick="switchTab('interactive')">✨ 互动广告</div>
+      </div>
+      <div class="result-grid" id="resultGrid"></div>
+
+      <div class="btn-row" style="margin-top: 24px;">
+        <button class="btn btn-default" onclick="backToStep2()">← 返回剧集匹配</button>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-default" onclick="regenerateAll()">🔄 全部重新生成</button>
+          <button class="btn btn-success" onclick="confirmDelivery()">✓ 确认投放</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="loading-overlay hidden" id="loading">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div id="loadingText">正在调用工作流...</div>
+  </div>
+</div>
+
+<!-- Progress Page -->
+<div class="progress-overlay hidden" id="progressPage">
+  <div class="progress-content">
+    <div class="progress-logo">🎬</div>
+    <div class="progress-title">正在生成创意内容</div>
+    <div class="progress-subtitle">AI 正在分析剧集与广告素材,预计需要 10-30 秒</div>
+    <div class="progress-bar-container">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="progress-percent" id="progressPercent">0%</div>
+    <div class="progress-steps" id="progressSteps">
+      <div class="progress-step active" data-step="1">
+        <div class="progress-step-icon">📊</div>
+        <div class="progress-step-info">
+          <div class="progress-step-name">素材解析</div>
+          <div class="progress-step-desc">正在分析广告素材特征</div>
+        </div>
+      </div>
+      <div class="progress-step" data-step="2">
+        <div class="progress-step-icon">🎭</div>
+        <div class="progress-step-info">
+          <div class="progress-step-name">剧集匹配</div>
+          <div class="progress-step-desc">正在匹配高契合度剧情场景</div>
+        </div>
+      </div>
+      <div class="progress-step" data-step="3">
+        <div class="progress-step-icon">✨</div>
+        <div class="progress-step-info">
+          <div class="progress-step-name">创意生成</div>
+          <div class="progress-step-desc">正在生成多类型广告创意</div>
+        </div>
+      </div>
+      <div class="progress-step" data-step="4">
+        <div class="progress-step-icon">🎨</div>
+        <div class="progress-step-info">
+          <div class="progress-step-name">内容优化</div>
+          <div class="progress-step-desc">正在优化创意呈现效果</div>
+        </div>
+      </div>
+    </div>
+    <div class="progress-hint">* 如果长时间未响应,请检查网络连接</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============== State ============== */
+const state = {
+  placements: new Set(),
+  images: [],   // {url, file_type, name}
+  videos: [],   // {url, file_type, name}
+  dramas: [],
+  selectedDramas: new Set(),
+  results: { text: [], image: [], video: [], interactive: [] },
+  currentTab: 'text'
+};
+
+/* ============== Utils ============== */
+function $(id) { return document.getElementById(id); }
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+function showLoading(text) {
+  $('loadingText').textContent = text || '加载中...';
+  $('loading').classList.remove('hidden');
+}
+function hideLoading() { $('loading').classList.add('hidden'); }
+
+/* ============== Progress Page ============== */
+function showProgressPage() {
+  $('progressPage').classList.remove('hidden');
+  $('progressBar').style.width = '0%';
+  $('progressPercent').textContent = '0%';
+  updateProgressStep(1);
+}
+
+function hideProgressPage() {
+  $('progressPage').classList.add('hidden');
+}
+
+function updateProgressStep(step) {
+  const steps = $('progressSteps').querySelectorAll('.progress-step');
+  const percent = [0, 15, 40, 70, 100][step] || 0;
+  $('progressBar').style.width = percent + '%';
+  $('progressPercent').textContent = percent + '%';
+  steps.forEach((s, i) => {
+    s.classList.remove('active', 'done');
+    if (i + 1 < step) s.classList.add('done');
+    else if (i + 1 === step) s.classList.add('active');
+  });
+}
+
+async function runProgressWorkflow() {
+  showProgressPage();
+  updateProgressStep(1);
+  await new Promise(r => setTimeout(r, 600));
+
+  updateProgressStep(2);
+  await new Promise(r => setTimeout(r, 600));
+
+  updateProgressStep(3);
+  await callWorkflow();
+
+  updateProgressStep(4);
+  await new Promise(r => setTimeout(r, 400));
+
+  hideProgressPage();
+}
+
+/* ============== Page Navigation ============== */
+function setStep(n) {
+  ['page1','page2','page3'].forEach((p,i) => {
+    $(p).classList.toggle('hidden', i !== n-1);
+  });
+  for (let i = 1; i <= 3; i++) {
+    const nav = $('stepNav' + i);
+    nav.classList.remove('active', 'done');
+    if (i < n) nav.classList.add('done');
+    else if (i === n) nav.classList.add('active');
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ============== Page 1: 素材解析 ============== */
+document.querySelectorAll('#placementChips .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const val = chip.dataset.value;
+    if (state.placements.has(val)) {
+      state.placements.delete(val);
+      chip.classList.remove('selected');
+    } else {
+      state.placements.add(val);
+      chip.classList.add('selected');
+    }
+  });
+});
+
+function handleFiles(files, type) {
+  Array.from(files).forEach(f => {
+    const url = URL.createObjectURL(f);
+    const item = { url, file_type: f.type, name: f.name };
+    if (type === 'image') state.images.push(item);
+    else state.videos.push(item);
+  });
+  renderFileList(type);
+}
+
+function renderFileList(type) {
+  const list = type === 'image' ? state.images : state.videos;
+  const container = $(type + 'List');
+  container.innerHTML = '';
+  list.forEach((it, idx) => {
+    const div = document.createElement('div');
+    div.className = 'file-item';
+    div.innerHTML = type === 'image'
+      ? `<img src="${it.url}" /><div class="name">${it.name}</div><button class="remove">×</button>`
+      : `<video src="${it.url}" muted></video><div class="name">${it.name}</div><button class="remove">×</button>`;
+    div.querySelector('.remove').onclick = () => {
+      list.splice(idx, 1);
+      renderFileList(type);
+    };
+    container.appendChild(div);
+  });
+}
+
+$('imageInput').addEventListener('change', e => handleFiles(e.target.files, 'image'));
+$('videoInput').addEventListener('change', e => handleFiles(e.target.files, 'video'));
+
+// Drag & drop
+document.querySelectorAll('.upload-zone').forEach(zone => {
+  const isImage = zone.parentElement.querySelector('#imageInput');
+  const type = isImage ? 'image' : 'video';
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    handleFiles(e.dataTransfer.files, type);
+  });
+});
+
+function buildPayload() {
+  // 把多字段文案拼成一个字符串(后端 ad_text 实际为字符串类型)
+  const parts = [
+    $('adTitle').value.trim(),
+    $('adSubtitle').value.trim(),
+    $('adContent').value.trim(),
+    $('adCta').value.trim()
+  ].filter(Boolean);
+  return {
+    ad_placements: Array.from(state.placements),
+    ad_text: parts.join(' | '),
+    ad_images: state.images.map(i => ({ url: i.url, file_type: 'image' })),
+    ad_videos: state.videos.map(v => ({ url: v.url, file_type: 'video' }))
+  };
+}
+
+async function goToStep2() {
+  if (state.placements.size === 0) { showToast('请至少选择一个广告位'); return; }
+  const hasText = $('adTitle').value.trim() || $('adContent').value.trim();
+  if (!hasText && state.images.length === 0 && state.videos.length === 0) {
+    showToast('请至少填写文案或上传素材'); return;
+  }
+  showLoading('正在解析素材并匹配剧集...');
+  // 模拟调用工作流(实际接入时替换为 fetch /run)
+  await mockWorkflowParse();
+  hideLoading();
+  setStep(2);
+  renderDramas();
+}
+
+/* ============== Page 2: 剧集匹配 ============== */
+async function mockWorkflowParse() {
+  await new Promise(r => setTimeout(r, 1200));
+  state.dramas = generateMockDramas();
+}
+
+function generateMockDramas() {
+  const samples = [
+    { name: '都市追梦人', type: '都市/职场', summary: '一群年轻人在大都市打拼,在追求事业与爱情中成长。',
+      roles: '林夏(女主)、陈宇(男主)、苏菲(职场闺蜜)', reason: '受众与年轻消费群高度重合,生活化场景适合产品植入' },
+    { name: '甜蜜陷阱', type: '爱情/喜剧', summary: '一对欢喜冤家从校园到职场的甜蜜爱情故事,充满轻松幽默的桥段。',
+      roles: '苏晴(女主)、顾辰(男主)', reason: '甜宠剧情契合广告活泼调性,女性观众占比高' },
+    { name: '锦绣山河', type: '古装/历史', summary: '乱世中,一位智慧女将军力挽狂澜守护家国的传奇史诗。',
+      roles: '萧云裳(女主)、慕容渊(男主)', reason: '高品质制作背书,适合品牌形象展示' },
+    { name: '硅谷风云', type: '商战/科技', summary: '科技创业者们在风云变幻的硅谷中博弈与崛起的故事。',
+      roles: 'Alex(CEO)、Linda(CTO)', reason: '高净值人群聚集,适合科技/金融类广告' },
+    { name: '美食江湖', type: '美食/治愈', summary: '一家小餐馆的老板与食客们的温情故事,每一道菜都讲述一个人生。',
+      roles: '老陈(老板)、小鱼(店员)', reason: '美食场景天然契合食品饮料类广告投放' },
+    { name: '青春合伙人', type: '青春/校园', summary: '四个性格迥异的大学生组队创业,经历友情考验与梦想绽放。',
+      roles: '李航、王小美、赵磊、陈思', reason: '年轻活力定位,Z世代用户触达效果好' },
+    { name: '极速狂飙', type: '动作/赛车', summary: '专业赛车手与车队在国际赛事中突破极限的热血故事。',
+      roles: '陆寒(车手)、Mike(教练)', reason: '高燃画面吸引男性受众,契合汽车/运动品类' },
+    { name: '心动信号', type: '恋爱/真人秀', summary: '素人嘉宾在限时空间内寻找爱情火花的恋爱观察类节目。',
+      roles: '8 位素人嘉宾 + 4 位明星观察员', reason: '话题度高,互动广告投放转化效果佳' }
+  ];
+  // shuffle
+  return samples.sort(() => Math.random() - 0.5).slice(0, 6);
+}
+
+function renderDramas() {
+  const grid = $('dramaGrid');
+  grid.innerHTML = '';
+  state.dramas.forEach((d, idx) => {
+    const card = document.createElement('div');
+    card.className = 'drama-card' + (state.selectedDramas.has(idx) ? ' selected' : '');
+    card.innerHTML = `
+      <button class="delete-btn" title="删除">🗑</button>
+      <div class="drama-name">${d.name}</div>
+      <span class="drama-tag">${d.type}</span>
+      <div class="drama-meta"><strong>主要角色:</strong>${d.roles}</div>
+      <div class="drama-summary">${d.summary}</div>
+      <div class="drama-reason">💡 ${d.reason}</div>
+    `;
+    card.onclick = (e) => {
+      if (e.target.classList.contains('delete-btn')) return;
+      if (state.selectedDramas.has(idx)) state.selectedDramas.delete(idx);
+      else state.selectedDramas.add(idx);
+      renderDramas();
+    };
+    card.querySelector('.delete-btn').onclick = (e) => {
+      e.stopPropagation();
+      state.dramas.splice(idx, 1);
+      // rebuild selectedDramas indexes
+      const newSel = new Set();
+      state.selectedDramas.forEach(i => { if (i < idx) newSel.add(i); else if (i > idx) newSel.add(i-1); });
+      state.selectedDramas = newSel;
+      renderDramas();
+    };
+    grid.appendChild(card);
+  });
+  $('dramaCount').textContent = state.dramas.length;
+  $('selectedCount').textContent = state.selectedDramas.size;
+}
+
+async function refreshDramas() {
+  showLoading('正在重新匹配剧集...');
+  await new Promise(r => setTimeout(r, 800));
+  state.dramas = generateMockDramas();
+  state.selectedDramas.clear();
+  renderDramas();
+  hideLoading();
+  showToast('已为你重新匹配');
+}
+
+function backToStep1() { setStep(1); }
+
+async function goToStep3() {
+  if (state.selectedDramas.size === 0) { showToast('请至少选择一部剧集'); return; }
+  await runProgressWorkflow();
+  if (state.results.text.length === 0 && state.results.image.length === 0 &&
+      state.results.video.length === 0 && state.results.interactive.length === 0) {
+    return;
+  }
+  setStep(3);
+  switchTab('text');
+}
+
+/* ============== Workflow API ============== */
+// API 配置:对接生产环境时,把 USE_MOCK 改为 false,并填入 API_ENDPOINT
+const API_CONFIG = {
+  USE_MOCK: false,                                // ← 接入真实接口时改为 false
+  API_ENDPOINT: '/.netlify/functions/proxy',      // ← 使用 Netlify Function 代理
+  AUTH_TOKEN: 'cztei_h9teN6PYi7qoUh5QjW1DSk54NTTrdFZtRF4I9TzSWG1lhvbpNNb3mWvQijEow3hFJ', // ← Token（不含 Bearer 前缀）
+  WORKFLOW_ID: '7636603529868230702'             // ← 您的工作流 ID
+};
+
+async function callWorkflow() {
+  const payload = buildPayload();
+
+  if (API_CONFIG.USE_MOCK) {
+    await new Promise(r => setTimeout(r, 1500));
+    state.results = generateMockResults();
+    return;
+  }
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (API_CONFIG.AUTH_TOKEN) headers['Authorization'] = 'Bearer ' + API_CONFIG.AUTH_TOKEN;
+
+    // Coze API 需要的格式
+    const cozePayload = {
+      workflow_id: API_CONFIG.WORKFLOW_ID,
+      parameters: payload  // 把原来的参数放在 parameters 里
+    };
+
+    const res = await fetch(API_CONFIG.API_ENDPOINT, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(cozePayload)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const raw = await res.json();
+    state.results = parseWorkflowResult(raw);
+  } catch (e) {
+    showToast('调用失败:' + e.message);
+    state.results = { text: [], image: [], video: [], interactive: [] };
+  }
+}
+
+/**
+ * 解析 Coze 工作流返回结构
+ * 真实返回示例:
+ * {
+ *   "code": 0, "msg": "", "execute_id": "...", "debug_url": "...",
+ *   "data": "{\"image\":[\"...\"],\"interact\":[\"...\"],\"text\":[],\"video\":\"...\"}"
+ * }
+ */
+function parseWorkflowResult(raw) {
+  // 1. 检查外层状态
+  if (raw.code !== 0) {
+    showToast('工作流执行失败:' + (raw.msg || '未知错误'));
+    return { text: [], image: [], video: [], interactive: [] };
+  }
+
+  // 2. data 字段是字符串,需要二次 parse
+  let payload;
+  try {
+    payload = typeof raw.data === 'string' ? JSON.parse(raw.data) : raw.data;
+  } catch (e) {
+    showToast('返回数据解析失败');
+    return { text: [], image: [], video: [], interactive: [] };
+  }
+
+  // 3. 选中的剧集信息(用于回填到结果卡的"剧情元素"区)
+  const selectedDramas = Array.from(state.selectedDramas).map(i => state.dramas[i]);
+  const dramaSummary = selectedDramas.map(d => d.name).join('、') || '匹配剧集';
+  const primaryDrama = selectedDramas[0] || { name: '推荐剧集', type: '剧情', roles: '主角' };
+
+  // 4. 字段归一化:有的是数组、有的是字符串、有的可能为空
+  const toArr = (v) => {
+    if (!v) return [];
+    if (Array.isArray(v)) return v.filter(Boolean);
+    return [v];
+  };
+  const images = toArr(payload.image);
+  const videos = toArr(payload.video);
+  const texts = toArr(payload.text);
+  const interacts = toArr(payload.interact);
+
+  // 5. 转成前端 4 个 Tab 期望的卡片结构
+  const adTitle = $('adTitle').value || '热销爆款';
+  const buildCard = (kind, content, idx) => ({
+    id: `${kind}-${idx}`,
+    title: `${primaryDrama.name} × ${adTitle} 创意 ${idx + 1}`,
+    drama: primaryDrama.name,
+    role: (primaryDrama.roles || '').split(/[、,，]/)[0] || '主角',
+    scene: primaryDrama.type || '剧情',
+    text: kind === 'text'
+      ? content
+      : `基于《${dramaSummary}》主角场景定制,自然融入剧情节奏`,
+    image: kind === 'image' ? content : null,
+    video: kind === 'video' ? content : null,
+    interactUrl: kind === 'interactive' ? content : null
+  });
+
+  // 文案 Tab:如果接口返回为空,基于剧集信息生成默认描述
+  let textCards = texts.map((t, i) => buildCard('text', t, i));
+  if (textCards.length === 0 && (images.length || videos.length || interacts.length)) {
+    textCards = selectedDramas.slice(0, 3).map((d, i) => buildCard('text',
+      `当${(d.roles||'').split(/[、,，]/)[0]||'主角'}遇见${adTitle},剧情迎来新转折——这一刻,选择与剧中人同行。`,
+      i));
+  }
+
+  return {
+    text: textCards,
+    image: images.map((url, i) => buildCard('image', url, i)),
+    video: videos.map((url, i) => buildCard('video', url, i)),
+    interactive: interacts.map((url, i) => buildCard('interactive', url, i))
+  };
+}
+
+function generateMockResults() {
+  const dramas = Array.from(state.selectedDramas).map(i => state.dramas[i]);
+  const adTitle = $('adTitle').value || '热销爆款';
+  const make = (kind) => dramas.slice(0, 3).map((d, i) => ({
+    id: kind + '-' + i,
+    title: `${d.name} × ${adTitle} 创意 ${i+1}`,
+    drama: d.name,
+    role: d.roles.split('、')[0],
+    scene: d.type,
+    preview: kind,
+    text: kind === 'text'
+      ? `当${d.roles.split('、')[0]}遇见${adTitle},剧情迎来新转折——${d.summary.slice(0,30)}...这一刻,选择与剧中人同行。`
+      : `基于《${d.name}》主角${d.roles.split('、')[0]}场景定制,自然融入剧情节奏`,
+    image: state.images[0]?.url,
+    video: state.videos[0]?.url
+  }));
+  return { text: make('text'), image: make('image'), video: make('video'), interactive: make('interactive') };
+}
+
+/* ============== Page 3: 生成结果 ============== */
+function switchTab(tab) {
+  state.currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  renderResults();
+}
+
+function renderResults() {
+  const grid = $('resultGrid');
+  const list = state.results[state.currentTab] || [];
+  grid.innerHTML = '';
+  if (list.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#8f959e; padding:40px;">暂无生成结果</div>';
+    return;
+  }
+  list.forEach((r, idx) => {
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    let preview = '';
+    if (state.currentTab === 'image' && r.image) {
+      preview = `<img src="${r.image}" referrerpolicy="no-referrer" /><div class="badge">图片创意</div>`;
+    } else if (state.currentTab === 'video' && r.video) {
+      preview = `<video src="${r.video}" muted controls preload="metadata"></video><div class="badge">视频创意</div>`;
+    } else if (state.currentTab === 'interactive' && r.interactUrl) {
+      preview = `<a href="${r.interactUrl}" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-decoration:none;width:100%;height:100%"><div style="font-size:36px;margin-bottom:8px">✨</div><div>点击在新窗口预览</div></a><div class="badge">互动广告</div>`;
+    } else if (state.currentTab === 'text') {
+      preview = `<div style="text-align:center;padding:20px"><div style="font-size:36px;margin-bottom:8px">📝</div>文案创意</div><div class="badge">文案</div>`;
+    } else {
+      preview = `<div style="text-align:center;padding:20px;color:#ddd">暂无预览</div>`;
+    }
+    // 互动广告展示外链
+    const linkRow = (state.currentTab === 'interactive' && r.interactUrl)
+      ? `<div style="font-size:12px;color:#3370ff;margin-bottom:10px;word-break:break-all">🔗 <a href="${r.interactUrl}" target="_blank" rel="noopener">${r.interactUrl}</a></div>`
+      : '';
+    card.innerHTML = `
+      <div class="result-preview">${preview}</div>
+      <div class="result-body">
+        <div class="result-title">${r.title}</div>
+        <div class="result-text">${r.text}</div>
+        ${linkRow}
+        <div class="drama-element">
+          <strong>剧情元素:</strong> 剧名《${r.drama}》 · 角色 ${r.role} · 场景 ${r.scene}
+        </div>
+        <div class="result-actions">
+          <button class="btn btn-default" onclick="regenerateOne('${state.currentTab}', ${idx})">🔄 重新生成</button>
+          <button class="btn btn-default" onclick="downloadOne('${state.currentTab}', ${idx})">⬇ 下载</button>
+          <button class="btn btn-danger" onclick="deleteOne('${state.currentTab}', ${idx})">删除</button>
+          <button class="btn btn-primary" onclick="confirmOne('${state.currentTab}', ${idx})">✓ 投放</button>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+async function regenerateOne(tab, idx) {
+  showLoading('正在重新生成...');
+  await new Promise(r => setTimeout(r, 800));
+  const item = state.results[tab][idx];
+  item.title += ' (新)';
+  item.text = '【已重新生成】' + item.text;
+  hideLoading();
+  renderResults();
+  showToast('已重新生成');
+}
+
+function downloadOne(tab, idx) {
+  const item = state.results[tab][idx];
+  const blob = new Blob([JSON.stringify(item, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${tab}-creative-${idx+1}.json`;
+  a.click();
+  showToast('已下载');
+}
+
+function deleteOne(tab, idx) {
+  if (!confirm('确认删除该创意?')) return;
+  state.results[tab].splice(idx, 1);
+  renderResults();
+  showToast('已删除');
+}
+
+function confirmOne(tab, idx) {
+  const item = state.results[tab][idx];
+  showToast(`✓ 已确认投放:${item.title}`);
+}
+
+async function regenerateAll() {
+  showLoading('正在全部重新生成...');
+  await callWorkflow();
+  hideLoading();
+  renderResults();
+  showToast('全部创意已重新生成');
+}
+
+function confirmDelivery() {
+  const total = Object.values(state.results).reduce((s, arr) => s + arr.length, 0);
+  if (total === 0) { showToast('暂无可投放的创意'); return; }
+  if (!confirm(`确认投放共 ${total} 条创意吗?`)) return;
+  showToast('🎉 已成功提交投放,可在投放管理中查看进度');
+}
+
+function backToStep2() { setStep(2); }
+
+/* ============== Init ============== */
+setStep(1);
+</script>
+</body>
+</html>
