@@ -1,8 +1,22 @@
 exports.handler = async (event, context) => {
+  // 处理 OPTIONS 预检请求
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
+      },
+      body: ''
+    };
+  }
+
   // 只处理 POST 请求
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
+      headers: { 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: 'Method not allowed' })
     };
   }
@@ -43,6 +57,7 @@ exports.handler = async (event, context) => {
   } catch (error) {
     return {
       statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: error.message })
     };
   }
