@@ -1,0 +1,12 @@
+{
+  "name": "ai-video-ad",
+  "version": "1.0.0",
+  "description": "AI Video Ad Generator",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'Build completed'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
